@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAI Thinktank — AI 趋势雷达 & 预测问题</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .tab-active { border-bottom: 2px solid #6366f1; color: #6366f1; font-weight: 600; }
+    .source-badge { font-size: 0.65rem; padding: 1px 6px; border-radius: 999px; font-weight: 500; }
+    .badge-arxiv { background: #fef3c7; color: #92400e; }
+    .badge-github { background: #e0e7ff; color: #3730a3; }
+    .badge-hf { background: #d1fae5; color: #065f46; }
+    .badge-media { background: #fce7f3; color: #9d174d; }
+    .badge-public_opinion { background: #f3e8ff; color: #6b21a8; }
+    .type-binary { background: #dbeafe; color: #1e40af; }
+    .type-single_choice { background: #dcfce7; color: #166534; }
+    .type-multi_choice { background: #fef9c3; color: #854d0e; }
+    .card { transition: box-shadow 0.15s; cursor: pointer; }
+    .card:hover { box-shadow: 0 4px 20px rgba(99,102,241,0.12); }
+    .burst-bar { height: 4px; border-radius: 2px; background: linear-gradient(90deg, #6366f1, #a855f7); }
+    #trend-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1rem; }
+    @media (max-width: 640px) { #trend-list { grid-template-columns: 1fr; } }
+    .sticky-header { position: sticky; top: 0; z-index: 10; }
+    .filter-btn.active { background: #6366f1; color: white; }
+    /* Evidence drawer */
+    #ev-drawer { transform: translateX(100%); transition: transform 0.25s ease; }
+    #ev-drawer.open { transform: translateX(0); }
+    #ev-overlay { opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+    #ev-overlay.open { opacity: 1; pointer-events: auto; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen">
+
+<!-- Evidence Drawer Overlay -->
+<div id="ev-overlay" class="fixed inset-0 bg-black/40 z-20" onclick="closeDrawer()"></div>
+
+<!-- Evidence Drawer -->
+<div id="ev-drawer" class="fixed top-0 right-0 h-full w-full max-w-lg bg-white shadow-2xl z-30 flex flex-col">
+  <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
+    <div>
+      <h2 id="ev-title" class="font-bold text-gray-900 text-base leading-tight"></h2>
+      <p id="ev-meta" class="text-xs text-gray-400 mt-0.5"></p>
+    </div>
+    <button onclick="closeDrawer()" class="text-gray-400 hover:text-gray-700 p-1">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+  <div id="ev-body" class="overflow-y-auto flex-1 px-5 py-4 space-y-3"></div>
+</div>
+
+<!-- Header -->
+<header class="bg-white border-b border-gray-200 sticky-header shadow-sm">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="font-bold text-gray-900 text-base leading-tight">SAI Thinktank</h1>
+        <p class="text-xs text-gray-400">AI 趋势雷达 · 开放预测</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="update-time" class="text-xs text-gray-400"></span>
+      <a href="https://github.com/dongjingjing-play/AI-trendforecast" target="_blank"
+         class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 border border-gray-200 rounded-lg px-3 py-1.5">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+        </svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="max-w-6xl mx-auto px-4 flex gap-6 border-t border-gray-100">
+    <button id="tab-trends" onclick="switchTab('trends')"
+      class="tab-active py-2 text-sm border-b-2 border-indigo-500 text-indigo-600 font-semibold">
+      趋势雷达
+    </button>
+    <button id="tab-forecasts" onclick="switchTab('forecasts')"
+      class="py-2 text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+      预测问题
+    </button>
+  </div>
+</header>
+
+<!-- Main -->
+<main class="max-w-6xl mx-auto px-4 py-6">
+
+  <!-- ===== TRENDS TAB ===== -->
+  <div id="pane-trends">
+    <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+      <div>
+        <h2 class="text-lg font-bold text-gray-900">AI 趋势雷达</h2>
+        <p id="trend-subtitle" class="text-sm text-gray-500 mt-0.5"></p>
+      </div>
+      <div class="flex gap-2 flex-wrap" id="source-filters">
+        <button class="filter-btn active text-xs px-3 py-1 rounded-full border border-gray-300" data-src="all" onclick="filterTrends('all',this)">全部</button>
+        <button class="filter-btn text-xs px-3 py-1 rounded-full border border-gray-300" data-src="arxiv" onclick="filterTrends('arxiv',this)">arXiv</button>
+        <button class="filter-btn text-xs px-3 py-1 rounded-full border border-gray-300" data-src="github" onclick="filterTrends('github',this)">GitHub</button>
+        <button class="filter-btn text-xs px-3 py-1 rounded-full border border-gray-300" data-src="media" onclick="filterTrends('media',this)">媒体</button>
+        <button class="filter-btn text-xs px-3 py-1 rounded-full border border-gray-300" data-src="hf" onclick="filterTrends('hf',this)">HuggingFace</button>
+      </div>
+    </div>
+    <div id="trend-list"></div>
+    <p id="trend-empty" class="hidden text-center text-gray-400 py-12">暂无数据，请先运行数据导出脚本</p>
+  </div>
+
+  <!-- ===== FORECASTS TAB ===== -->
+  <div id="pane-forecasts" class="hidden">
+    <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+      <div>
+        <h2 class="text-lg font-bold text-gray-900">开放预测问题</h2>
+        <p id="forecast-subtitle" class="text-sm text-gray-500 mt-0.5"></p>
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        <button class="filter-btn active text-xs px-3 py-1 rounded-full border border-gray-300" data-type="all" onclick="filterForecasts('all',this)">全部</button>
+        <button class="filter-btn text-xs px-3 py-1 rounded-full border border-gray-300" data-type="binary" onclick="filterForecasts('binary',this)">是/否题</button>
+        <button class="filter-btn text-xs px-3 py-1 rounded-full border border-gray-300" data-type="single_choice" onclick="filterForecasts('single_choice',this)">单选题</button>
+        <button class="filter-btn text-xs px-3 py-1 rounded-full border border-gray-300" data-type="multi_choice" onclick="filterForecasts('multi_choice',this)">多选题</button>
+      </div>
+    </div>
+    <div id="forecast-list" class="space-y-3"></div>
+    <p id="forecast-empty" class="hidden text-center text-gray-400 py-12">暂无数据，请先运行数据导出脚本</p>
+  </div>
+
+</main>
+
+<!-- Footer -->
+<footer class="border-t border-gray-200 mt-12 py-6 text-center text-xs text-gray-400">
+  <p>SAI Thinktank · 开源 AI 趋势追踪与预测系统</p>
+  <p class="mt-1">数据每周更新 · <a href="https://github.com/dongjingjing-play/AI-trendforecast" class="underline hover:text-gray-600">贡献 / 反馈</a></p>
+</footer>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let trendsData = [], forecastsData = [], trendsFiltered = [];
+let currentTrendSrc = 'all', currentForecastType = 'all';
+
+// ─── Tab switching ─────────────────────────────────────────────────────────
+function switchTab(tab) {
+  ['trends','forecasts'].forEach(t => {
+    document.getElementById('pane-'+t).classList.toggle('hidden', t !== tab);
+    const btn = document.getElementById('tab-'+t);
+    btn.className = t === tab
+      ? 'tab-active py-2 text-sm border-b-2 border-indigo-500 text-indigo-600 font-semibold'
+      : 'py-2 text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700';
+  });
+}
+
+// ─── Evidence Drawer ──────────────────────────────────────────────────────
+const srcTypeLabel = { arxiv:'arXiv', github:'GitHub', hf:'HuggingFace', media:'媒体', public_opinion:'公众舆论' };
+const EV_PAGE_SIZE = 10;
+let evCurrent = null, evPage = 0;
+
+function renderEvPage() {
+  const evs = evCurrent.evidence || [];
+  const total = evs.length;
+  const start = evPage * EV_PAGE_SIZE;
+  const slice = evs.slice(start, start + EV_PAGE_SIZE);
+  const body = document.getElementById('ev-body');
+
+  const items = slice.map(ev => {
+    const src = srcTypeLabel[ev.source_type] || ev.source_type || '';
+    const dateStr = ev.date ? ev.date.slice(0,10) : '';
+    const titleEl = ev.url
+      ? `<a href="${ev.url}" target="_blank" rel="noopener" class="font-medium text-indigo-700 hover:underline">${ev.title||'（无标题）'}</a>`
+      : `<span class="font-medium text-gray-800">${ev.title||'（无标题）'}</span>`;
+    const summary = ev.summary ? `<p class="text-xs text-gray-500 mt-1 leading-relaxed">${ev.summary}</p>` : '';
+    return `
+    <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex-1 text-sm">${titleEl}</div>
+        <div class="shrink-0 text-right">
+          ${src ? `<span class="source-badge bg-gray-200 text-gray-600">${src}</span>` : ''}
+          <div class="text-xs text-gray-400 mt-0.5">${dateStr}</div>
+        </div>
+      </div>
+      ${summary}
+    </div>`;
+  }).join('');
+
+  const totalPages = Math.ceil(total / EV_PAGE_SIZE);
+  const pagination = totalPages > 1 ? `
+    <div class="flex items-center justify-between pt-2 border-t border-gray-100 mt-2">
+      <span class="text-xs text-gray-400">${start+1}–${Math.min(start+EV_PAGE_SIZE, total)} / ${total} 条</span>
+      <div class="flex gap-2">
+        <button onclick="evPageNav(-1)" ${evPage===0?'disabled':''} class="text-xs px-3 py-1 rounded border border-gray-200 disabled:opacity-30 hover:bg-gray-50">上一页</button>
+        <button onclick="evPageNav(1)" ${evPage>=totalPages-1?'disabled':''} class="text-xs px-3 py-1 rounded border border-gray-200 disabled:opacity-30 hover:bg-gray-50">下一页</button>
+      </div>
+    </div>` : '';
+
+  body.innerHTML = items + pagination;
+}
+
+function evPageNav(delta) {
+  const total = (evCurrent.evidence || []).length;
+  const totalPages = Math.ceil(total / EV_PAGE_SIZE);
+  evPage = Math.max(0, Math.min(evPage + delta, totalPages - 1));
+  renderEvPage();
+  document.getElementById('ev-body').scrollTop = 0;
+}
+
+function openDrawer(concept) {
+  evCurrent = concept;
+  evPage = 0;
+  document.getElementById('ev-title').textContent = concept.canonical_name;
+  document.getElementById('ev-meta').textContent =
+    `${(concept.burst_ratio||0).toFixed(1)}x 爆发  ·  ${concept.current_count||0} 条信号  ·  ${(concept.sources||[]).join('/')}`;
+  const total = (concept.evidence || []).length;
+  if (!total) {
+    document.getElementById('ev-body').innerHTML = '<p class="text-sm text-gray-400 py-8 text-center">暂无详细证据条目</p>';
+  } else {
+    renderEvPage();
+  }
+  document.getElementById('ev-drawer').classList.add('open');
+  document.getElementById('ev-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDrawer() {
+  document.getElementById('ev-drawer').classList.remove('open');
+  document.getElementById('ev-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+// ─── Source badge ──────────────────────────────────────────────────────────
+function sourceBadge(src) {
+  const map = {
+    arxiv: ['badge-arxiv','arXiv'],
+    github: ['badge-github','GitHub'],
+    hf: ['badge-hf','HF'],
+    media: ['badge-media','媒体'],
+    public_opinion: ['badge-public_opinion','舆论'],
+  };
+  const [cls, label] = map[src] || ['bg-gray-100 text-gray-500', src];
+  return `<span class="source-badge ${cls}">${label}</span>`;
+}
+
+// ─── Trends ────────────────────────────────────────────────────────────────
+function renderTrends(data) {
+  const list = document.getElementById('trend-list');
+  const empty = document.getElementById('trend-empty');
+  if (!data.length) { list.innerHTML=''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+  const filtered = currentTrendSrc === 'all'
+    ? data
+    : data.filter(d => (d.sources||[]).includes(currentTrendSrc));
+  trendsFiltered = filtered;
+  list.innerHTML = filtered.map((c, i) => {
+    const burst = Math.min(c.burst_ratio || 0, 20);
+    const pct = Math.round(burst / 20 * 100);
+    const srcs = (c.sources||[]).map(sourceBadge).join(' ');
+    const titles = (c.sample_titles||[]).slice(0,2).map(t=>
+      `<li class="text-xs text-gray-500 truncate">· ${t}</li>`
+    ).join('');
+    const hotness = c.hotness_score ? `<span class="text-xs text-orange-500 font-medium">🔥 ${c.hotness_score.toFixed(1)}</span>` : '';
+    const theme = c.theme_group ? `<span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${c.theme_group}</span>` : '';
+    const evCount = (c.evidence||[]).length;
+    const evBtn = evCount
+      ? `<button onclick="event.stopPropagation();openDrawer(trendsFiltered[${i}])" class="text-xs text-indigo-500 hover:text-indigo-700 mt-2 flex items-center gap-1">
+           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+           查看 ${evCount} 条证据
+         </button>`
+      : '';
+    return `
+    <div class="card bg-white rounded-xl border border-gray-200 p-4" onclick="openDrawer(trendsFiltered[${i}])">
+      <div class="flex items-start justify-between gap-2 mb-2">
+        <h3 class="text-sm font-semibold text-gray-900 leading-snug flex-1">${c.canonical_name}</h3>
+        <div class="text-right shrink-0">
+          <div class="text-lg font-bold text-indigo-600">${(c.burst_ratio||0).toFixed(1)}x</div>
+          <div class="text-xs text-gray-400">爆发</div>
+        </div>
+      </div>
+      <div class="burst-bar mb-3" style="width:${pct}%"></div>
+      <div class="flex flex-wrap gap-1.5 mb-3">
+        ${srcs} ${theme} ${hotness}
+      </div>
+      <div class="text-xs text-gray-400 mb-1">近期信号 (${c.current_count||0} 条)</div>
+      <ul class="space-y-0.5">${titles}</ul>
+      ${evBtn}
+    </div>`;
+  }).join('');
+}
+
+function filterTrends(src, btn) {
+  currentTrendSrc = src;
+  document.querySelectorAll('#source-filters .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTrends(trendsData);
+}
+
+// ─── Forecasts ─────────────────────────────────────────────────────────────
+const typeLabel = { binary:'是/否', single_choice:'单选', multi_choice:'多选' };
+const typeCls = { binary:'type-binary', single_choice:'type-single_choice', multi_choice:'type-multi_choice' };
+
+function renderForecasts(data) {
+  const list = document.getElementById('forecast-list');
+  const empty = document.getElementById('forecast-empty');
+  if (!data.length) { list.innerHTML=''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+  const filtered = currentForecastType === 'all'
+    ? data
+    : data.filter(d => d.question_type === currentForecastType);
+  list.innerHTML = filtered.map(q => {
+    const typeTag = `<span class="source-badge ${typeCls[q.question_type]||'bg-gray-100 text-gray-500'}">${typeLabel[q.question_type]||q.question_type}</span>`;
+    const infer = q.inferability_score ? `<span class="text-xs text-gray-400">可推断 ${(q.inferability_score*100).toFixed(0)}%</span>` : '';
+    const end = q.time_window_end ? `<span class="text-xs text-gray-400">截止 ${q.time_window_end.slice(0,10)}</span>` : '';
+    const cat = q.category ? `<span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">${q.category}</span>` : '';
+    const opts = (q.options||[]).length ? `<div class="mt-2 flex flex-wrap gap-1.5">${q.options.map(o=>`<span class="text-xs bg-gray-50 border border-gray-200 text-gray-600 px-2 py-0.5 rounded">${o.id}. ${o.label}</span>`).join('')}</div>` : '';
+    return `
+    <div class="card bg-white rounded-xl border border-gray-200 p-4">
+      <div class="flex items-start gap-2 mb-2">
+        <span class="text-xs text-gray-400 shrink-0 mt-0.5">Q${q.question_id}</span>
+        <p class="text-sm text-gray-800 leading-relaxed">${q.question}</p>
+      </div>
+      ${opts}
+      <div class="flex flex-wrap gap-2 mt-3 items-center">
+        ${typeTag} ${cat} ${end} ${infer}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterForecasts(type, btn) {
+  currentForecastType = type;
+  document.querySelectorAll('#pane-forecasts .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderForecasts(forecastsData);
+}
+
+// ─── Load data ─────────────────────────────────────────────────────────────
+async function load() {
+  try {
+    const [tRes, fRes] = await Promise.all([
+      fetch('data/trends.json'),
+      fetch('data/forecasts.json'),
+    ]);
+    const tJson = await tRes.json();
+    const fJson = await fRes.json();
+
+    trendsData = tJson.concepts || [];
+    forecastsData = fJson.questions || [];
+
+    const tMeta = tJson.meta || {};
+    document.getElementById('trend-subtitle').textContent =
+      `${tMeta.window_start||''} ~ ${tMeta.window_end||''}  ·  共 ${trendsData.length} 个趋势`;
+    document.getElementById('forecast-subtitle').textContent =
+      `${fJson.meta?.exported_at?.slice(0,10)||''} 导出  ·  共 ${forecastsData.length} 道题`;
+    document.getElementById('update-time').textContent =
+      '更新于 ' + (tMeta.exported_at||fJson.meta?.exported_at||'').slice(0,10);
+
+    renderTrends(trendsData);
+    renderForecasts(forecastsData);
+  } catch (e) {
+    document.getElementById('trend-empty').classList.remove('hidden');
+    document.getElementById('forecast-empty').classList.remove('hidden');
+    console.warn('Data load failed:', e);
+  }
+}
+
+load();
+</script>
+</body>
+</html>
